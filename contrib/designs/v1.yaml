@@ -1,0 +1,10 @@
+version: 1
+environment:
+  base: archlinux
+  username: jaredallard
+
+  # Optional items to enable in this image  
+  options:
+    pulseaudio: true
+    x11: true
+    systemd: true
