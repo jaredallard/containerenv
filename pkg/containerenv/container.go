@@ -3,6 +3,7 @@ package containerenv
 import (
 	"fmt"
 	"log"
+	"os/exec"
 
 	"os"
 
@@ -10,9 +11,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
+	"k8s.io/kubernetes/pkg/kubectl/util/term"
 )
 
 // CreateContainer creates a docker container and returns the id of the container
@@ -26,7 +29,11 @@ func CreateContainer(e *Environment) (string, error) {
 
 	config := &container.Config{
 		Image: e.Image,
-		Env:   []string{fmt.Sprintf("USERNAME_CONFIG=%s", e.Username)},
+		Labels: map[string]string{
+			"jaredallard.containerenv/environment":      "true",
+			"jaredallard.containerenv/environment-name": e.Name,
+		},
+		Env: []string{fmt.Sprintf("USERNAME_CONFIG=%s", e.Username)},
 	}
 
 	hostconfig := &container.HostConfig{
@@ -99,7 +106,7 @@ func CreateContainer(e *Environment) (string, error) {
 		config.Env = append(config.Env, "X11_CONFIG=CONTAINER")
 	}
 
-	resp, err := docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, "environment")
+	resp, err := docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
 	if client.IsErrImageNotFound(err) {
 
 	} else if err != nil {
@@ -132,4 +139,51 @@ func StopContainer(id string) error {
 
 	dur := time.Minute * 5
 	return docker.ContainerStop(ctx, id, &dur)
+}
+
+// ListContainers returns a list of environment containers running
+func ListContainers() (*[]types.Container, error) {
+	ctx := context.Background()
+
+	docker, err := client.NewEnvClient()
+	if err != nil {
+		return nil, fmt.Errorf("ERROR: couldn't create docker client\n%+v", err)
+	}
+
+	f := filters.NewArgs()
+	f.Add("label", "jaredallard.containerenv/environment=true")
+	cnts, err := docker.ContainerList(ctx, types.ContainerListOptions{
+		Filters: f,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search for environments: %s", err)
+	}
+
+	names := make([]types.Container, len(cnts))
+	for i, cnt := range cnts {
+		names[i] = cnt
+	}
+
+	return &names, nil
+}
+
+// Exec opens a shell into an environment
+// This just wraps docker exec due to not wanting to reimplement that.
+func Exec(name string) error {
+	com := exec.Command("/usr/bin/docker", []string{
+		"exec",
+		"-it",
+		"--user",
+		"1000",
+		name,
+		"bash",
+		"--login",
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	return err
 }

@@ -1,6 +1,12 @@
 version: 1
 environment:
+  # Name of this environment
+  name: work
+
+  # Base image to use
   base: archlinux
+
+  # Username that should be set in this container
   username: jaredallard
 
   # Optional items to enable in this image  

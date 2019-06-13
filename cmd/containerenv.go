@@ -23,6 +23,18 @@ func main() {
 			Action:    createCommand,
 		},
 		cli.Command{
+			Name:      "exec",
+			Usage:     "Exec into an environment",
+			UsageText: "exec <container-id>",
+			Action:    execCommand,
+		},
+		cli.Command{
+			Name:      "ps",
+			Usage:     "List running environments",
+			UsageText: "ps",
+			Action:    psCommand,
+		},
+		cli.Command{
 			Name:      "version",
 			Usage:     "Return the version of the application",
 			UsageText: "version",

@@ -13,6 +13,10 @@ import (
 )
 
 func createCommand(c *cli.Context) error {
+	if c.Args().First() == "" {
+		return fmt.Errorf("Missing environment config path")
+	}
+
 	b, err := ioutil.ReadFile(c.Args().First())
 	if err != nil {
 		return fmt.Errorf("Failed to read config file: %v", err)
@@ -24,7 +28,7 @@ func createCommand(c *cli.Context) error {
 		return fmt.Errorf("Failed to read config file: %v", err)
 	}
 
-	if !conf.Environment.Options.PulseAudio {
+	if !conf.Environment.Options.SystemD {
 		log.Fatalf("Disabling systemd is not supported at this time.")
 		os.Exit(1)
 	}
@@ -41,10 +45,10 @@ func createCommand(c *cli.Context) error {
 	}
 
 	id, err := containerenv.CreateContainer(&containerenv.Environment{
-		StartOnBoot: false,
-		SystemD:     conf.Environment.Options.PulseAudio,
-		Image:       fmt.Sprintf("jaredallard/containerenv-%s", conf.Environment.Base),
-		Username:    conf.Environment.Username,
+		Name:     conf.Environment.Name,
+		SystemD:  conf.Environment.Options.PulseAudio,
+		Image:    fmt.Sprintf("jaredallard/containerenv-%s", conf.Environment.Base),
+		Username: conf.Environment.Username,
 		PulseAudio: containerenv.PulseAudioSettings{
 			Host: true,
 		},

@@ -5,6 +5,9 @@ type ConfigFileV1 struct {
 	Version int `yaml:"version"`
 
 	Environment struct {
+		// Name is the name of this environment
+		Name string `yaml:"name"`
+
 		// Base is the base image to use
 		Base string `yaml:"base"`
 
@@ -27,8 +30,8 @@ type ConfigFileV1 struct {
 
 // Environment is a containerized user environment that should be run
 type Environment struct {
-	// StartOnBoot defines if this environment should be automatically launched on boot or not.
-	StartOnBoot bool `json:"startOnBoot"`
+	// Name of the environment
+	Name string `json:"name"`
 
 	// Username is the user we should run as in this container
 	Username string `json:"username"`
