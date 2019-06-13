@@ -2,7 +2,7 @@ package version
 
 var (
 	// Version is the version of containerenv
-	Version = "v0.1.0"
+	Version = "v0.2.0"
 
 	// BuildMetadata is extra build time data
 	BuildMetadata = "unreleased"
