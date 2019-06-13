@@ -26,6 +26,10 @@ SHELL=/bin/bash
 .PHONY: all
 all: build
 
+.PHONY: release
+release:
+	@./hack/make-release.sh
+
 .PHONY: dep
 dep:
 	@go mod vendor
