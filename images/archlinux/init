@@ -19,9 +19,16 @@ rm -f /lib/systemd/system/anaconda.target.wants/*;
 
 if ! grep 1000 < /etc/passwd >/dev/null 2>&1; then
   output "creating user / group"
-  groupadd --gid 1000 "$USERNAME_CONFIG"
-  useradd --gid 1000 --uid 1000 -G wheel -m "$USERNAME_CONFIG"
-  usermod -aG docker "$USERNAME_CONFIG"
+  groupadd --gid 1000 "$USERNAME_CONFIG" || true
+  useradd --gid 1000 --uid 1000 -G wheel -m "$USERNAME_CONFIG" || true
+
+  if [[ -n "$DOCKER_GID" ]]; then
+    output "enabling access to host docker"
+    groupdel docker
+    groupadd --gid "$DOCKER_GID" docker
+    usermod -aG docker "$USERNAME_CONFIG"
+    chgrp docker /var/run/docker.sock
+  fi
 
 cat << EOF > "/home/$USERNAME_CONFIG/.bashrc"
   #!/usr/bin/env bash

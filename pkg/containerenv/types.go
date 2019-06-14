@@ -9,7 +9,8 @@ type ConfigFileV1 struct {
 		Name string `yaml:"name"`
 
 		// Base is the base image to use
-		Base string `yaml:"base"`
+		// DEPRECATED
+		Base string `yaml:"base,omitempty"`
 
 		// Image defines a custom image to be used for this environment
 		Image string `yaml:"image"`
@@ -18,14 +19,14 @@ type ConfigFileV1 struct {
 		Username string `yaml:"username"`
 
 		// Binds are paths that should be mounted on the host into the container. The format is host:container
-		Binds []string `yaml:"binds"`
+		Binds []string `yaml:"binds,omitempty"`
 
 		// CommitOptions modifies what commit should do when
 		// tracking changes
 		CommitOptions struct {
 			// Image name to modify. Must have push access to this.
-			Image string `yaml:"image"`
-		} `yaml:"commitOptions"`
+			Image string `yaml:"image,omitempty"`
+		} `yaml:"commitOptions,omitempty"`
 
 		// Options contains toggleable features
 		Options struct {
@@ -37,8 +38,8 @@ type ConfigFileV1 struct {
 
 			// SystemD enables systemd support
 			SystemD bool `yaml:"systemd"`
-		} `yaml:"options:`
-	}
+		} `yaml:"options"`
+	} `yaml:"environment"`
 }
 
 // Environment is a containerized user environment that should be run

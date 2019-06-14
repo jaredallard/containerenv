@@ -13,9 +13,11 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
+	github.com/moby/moby v1.13.1
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/urfave/cli v1.20.0
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/net v0.0.0-20190611141213-3f473d35a33a
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
@@ -23,7 +25,6 @@ require (
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/client-go v0.0.0-20190612125919-5c45477a8ae7 // indirect
 	k8s.io/kubernetes v1.14.3
-	sigs.k8s.io/yaml v1.1.0
 )
 
 exclude github.com/Sirupsen/logrus v1.3.0

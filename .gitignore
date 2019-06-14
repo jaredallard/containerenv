@@ -1,3 +1,4 @@
 vendor
 bin
 Release
+env.yaml

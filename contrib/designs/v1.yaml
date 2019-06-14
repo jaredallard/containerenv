@@ -3,8 +3,8 @@ environment:
   # Name of this environment
   name: work
 
-  # Base image to use
-  base: archlinux
+  # Image to use
+  image: jaredallard/containerenv-archlinux
 
   # Username that should be set in this container
   username: jaredallard

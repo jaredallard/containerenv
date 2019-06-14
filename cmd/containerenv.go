@@ -48,6 +48,12 @@ func main() {
 			},
 		},
 		cli.Command{
+			Name:      "init",
+			Usage:     "Initialize an environment",
+			UsageText: "init",
+			Action:    initCommand,
+		},
+		cli.Command{
 			Name:      "delete",
 			Usage:     "Delete an environment",
 			UsageText: "delete <environment-name>",

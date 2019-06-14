@@ -2,7 +2,6 @@ package containerenv
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os/exec"
 
@@ -15,6 +14,8 @@ import (
 
 	"strings"
 
+	"os/user"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -23,6 +24,8 @@ import (
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 )
+
+// TODO: don't invoke docker
 
 // CreateContainer creates a docker container and returns the id of the container
 func CreateContainer(e *Environment) (string, error) {
@@ -55,6 +58,11 @@ func CreateContainer(e *Environment) (string, error) {
 		Binds: []string{
 			"/var/run/docker.sock:/var/run/docker.sock",
 		},
+	}
+
+	g, err := user.LookupGroup("docker")
+	if err == nil {
+		config.Env = append(config.Env, fmt.Sprintf("DOCKER_GID=%s", g.Gid))
 	}
 
 	if e.Binds != nil {
@@ -128,18 +136,7 @@ func CreateContainer(e *Environment) (string, error) {
 
 	resp, err := docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
 	if client.IsErrImageNotFound(err) {
-		log.Printf("Pulling image %s...\n", config.Image)
-		reader, err := docker.ImagePull(ctx, config.Image, types.ImagePullOptions{})
-		if err != nil {
-			return "", fmt.Errorf("couldn't pull image %s\n%+v", config.Image, err)
-		}
-		defer reader.Close()
-
-		_, err = io.Copy(os.Stdout, reader)
-		if err != nil {
-			log.Printf("WARNING: couldn't get docker output\n%+v", err)
-		}
-
+		PullImage(config.Image)
 		resp, err = docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
 		return resp.ID, err
 	} else if err != nil {
@@ -147,6 +144,22 @@ func CreateContainer(e *Environment) (string, error) {
 	}
 
 	return resp.ID, err
+}
+
+// PullImage pulls a docker image
+// invokes docker to not reimplement this
+func PullImage(image string) error {
+	com := exec.Command("/usr/bin/docker", []string{
+		"pull",
+		image,
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	return err
 }
 
 // StartContainer starts a container
@@ -294,6 +307,22 @@ func Commit(name, image string) (string, error) {
 	return imageName, err
 }
 
+// Tag tags an image
+func Tag(src, dst string) error {
+	com := exec.Command("/usr/bin/docker", []string{
+		"tag",
+		src,
+		dst,
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	return err
+}
+
 // Push pushes a docker image and updates the latest ref
 // Uses docker cli to avoid dealing with auth
 func Push(image string) error {
@@ -314,20 +343,7 @@ func Push(image string) error {
 	subs := strings.Split(image, ":'")
 	latest := fmt.Sprintf("%s:latest", subs[0])
 
-	com = exec.Command("/usr/bin/docker", []string{
-		"tag",
-		image,
-		latest,
-	}...)
-	com.Env = os.Environ()
-	com.Stderr = os.Stderr
-	com.Stdin = os.Stdin
-	com.Stdout = os.Stdout
-
-	err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
-	if err != nil {
-		return err
-	}
+	Tag(image, latest)
 
 	log.Printf("updating latest tag")
 
