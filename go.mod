@@ -23,6 +23,7 @@ require (
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/client-go v0.0.0-20190612125919-5c45477a8ae7 // indirect
 	k8s.io/kubernetes v1.14.3
+	sigs.k8s.io/yaml v1.1.0
 )
 
 exclude github.com/Sirupsen/logrus v1.3.0

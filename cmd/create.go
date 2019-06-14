@@ -44,16 +44,35 @@ func createCommand(c *cli.Context) error {
 		}
 	}
 
-	id, err := containerenv.CreateContainer(&containerenv.Environment{
+	var image string
+	if conf.Environment.Base != "" {
+		image = fmt.Sprintf("jaredallard/containerenv-%s", conf.Environment.Base)
+	} else if conf.Environment.Image != "" {
+		image = conf.Environment.Image
+	} else {
+		return fmt.Errorf("Missing a Base or Image declaration")
+	}
+
+	env := &containerenv.Environment{
 		Name:     conf.Environment.Name,
 		SystemD:  conf.Environment.Options.PulseAudio,
-		Image:    fmt.Sprintf("jaredallard/containerenv-%s", conf.Environment.Base),
+		Image:    image,
 		Username: conf.Environment.Username,
 		PulseAudio: containerenv.PulseAudioSettings{
 			Host: true,
 		},
 		X11: x11Conf,
-	})
+	}
+
+	if conf.Environment.CommitOptions.Image != "" {
+		env.CommitImage = conf.Environment.CommitOptions.Image
+	}
+
+	if conf.Environment.Binds != nil {
+		env.Binds = conf.Environment.Binds
+	}
+
+	id, err := containerenv.CreateContainer(env)
 	if err != nil {
 		return err
 	}

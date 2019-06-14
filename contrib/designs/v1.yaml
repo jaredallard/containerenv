@@ -9,6 +9,11 @@ environment:
   # Username that should be set in this container
   username: jaredallard
 
+  # Binds are paths that should be exposed in the container
+  # Follows the -v format of docker.
+  binds:
+  - /home/jared/code:/home/jaredallard/code
+
   # Optional items to enable in this image  
   options:
     pulseaudio: true

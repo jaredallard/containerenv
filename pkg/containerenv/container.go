@@ -2,12 +2,18 @@ package containerenv
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 
 	"os"
 
 	"time"
+
+	"encoding/base64"
+	"encoding/json"
+
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -24,7 +30,12 @@ func CreateContainer(e *Environment) (string, error) {
 
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		return "", fmt.Errorf("ERROR: couldn't create docker client\n%+v", err)
+		return "", fmt.Errorf("couldn't create docker client\n%+v", err)
+	}
+
+	b, err := json.Marshal(e)
+	if err != nil {
+		return "", fmt.Errorf("Failed to marshal config: %v", err)
 	}
 
 	config := &container.Config{
@@ -32,13 +43,22 @@ func CreateContainer(e *Environment) (string, error) {
 		Labels: map[string]string{
 			"jaredallard.containerenv/environment":      "true",
 			"jaredallard.containerenv/environment-name": e.Name,
+			"jaredallard.containerenv/config":           base64.StdEncoding.EncodeToString(b),
 		},
 		Env: []string{fmt.Sprintf("USERNAME_CONFIG=%s", e.Username)},
 	}
 
 	hostconfig := &container.HostConfig{
-		Tmpfs:  make(map[string]string),
-		CapAdd: make([]string, 0),
+		Tmpfs:       make(map[string]string),
+		CapAdd:      make([]string, 0),
+		NetworkMode: "host",
+		Binds: []string{
+			"/var/run/docker.sock:/var/run/docker.sock",
+		},
+	}
+
+	if e.Binds != nil {
+		hostconfig.Binds = append(hostconfig.Binds, e.Binds...)
 	}
 
 	if e.SystemD {
@@ -108,7 +128,20 @@ func CreateContainer(e *Environment) (string, error) {
 
 	resp, err := docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
 	if client.IsErrImageNotFound(err) {
+		log.Printf("Pulling image %s...\n", config.Image)
+		reader, err := docker.ImagePull(ctx, config.Image, types.ImagePullOptions{})
+		if err != nil {
+			return "", fmt.Errorf("couldn't pull image %s\n%+v", config.Image, err)
+		}
+		defer reader.Close()
 
+		_, err = io.Copy(os.Stdout, reader)
+		if err != nil {
+			log.Printf("WARNING: couldn't get docker output\n%+v", err)
+		}
+
+		resp, err = docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
+		return resp.ID, err
 	} else if err != nil {
 		return "", err
 	}
@@ -122,7 +155,7 @@ func StartContainer(id string) error {
 
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		return fmt.Errorf("ERROR: couldn't create docker client\n%+v", err)
+		return fmt.Errorf("couldn't create docker client\n%+v", err)
 	}
 
 	return docker.ContainerStart(ctx, id, types.ContainerStartOptions{})
@@ -134,11 +167,23 @@ func StopContainer(id string) error {
 
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		return fmt.Errorf("ERROR: couldn't create docker client\n %+v", err)
+		return fmt.Errorf("couldn't create docker client\n %+v", err)
 	}
 
-	dur := time.Minute * 5
+	dur := time.Second * 5
 	return docker.ContainerStop(ctx, id, &dur)
+}
+
+// RemoveContainer removes a container
+func RemoveContainer(id string) error {
+	ctx := context.Background()
+
+	docker, err := client.NewEnvClient()
+	if err != nil {
+		return fmt.Errorf("couldn't create docker client\n %+v", err)
+	}
+
+	return docker.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
 }
 
 // ListContainers returns a list of environment containers running
@@ -147,7 +192,7 @@ func ListContainers() (*[]types.Container, error) {
 
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		return nil, fmt.Errorf("ERROR: couldn't create docker client\n%+v", err)
+		return nil, fmt.Errorf("couldn't create docker client\n%+v", err)
 	}
 
 	f := filters.NewArgs()
@@ -165,6 +210,43 @@ func ListContainers() (*[]types.Container, error) {
 	}
 
 	return &names, nil
+}
+
+// GetConfig returns the config of an environment
+func GetConfig(name string) (*Environment, error) {
+	ctx := context.Background()
+
+	docker, err := client.NewEnvClient()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create docker client\n%+v", err)
+	}
+
+	f := filters.NewArgs()
+	f.Add("label", fmt.Sprintf("jaredallard.containerenv/environment-name=%s", name))
+	cnts, err := docker.ContainerList(ctx, types.ContainerListOptions{
+		Filters: f,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(cnts) != 1 {
+		return nil, fmt.Errorf("failed to find container for environment (len %d)", len(cnts))
+	}
+
+	config := cnts[0].Labels["jaredallard.containerenv/config"]
+	var env Environment
+
+	decodedConfig, err := base64.StdEncoding.DecodeString(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 config: %v", err)
+	}
+
+	err = json.Unmarshal(decodedConfig, &env)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall to json: %v", err)
+	}
+
+	return &env, nil
 }
 
 // Exec opens a shell into an environment
@@ -185,5 +267,79 @@ func Exec(name string) error {
 	com.Stdout = os.Stdout
 
 	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	return err
+}
+
+// Commit creates a new version of an environment and pushes
+// it to a docker registry
+func Commit(name, image string) (string, error) {
+	ctx := context.Background()
+
+	docker, err := client.NewEnvClient()
+	if err != nil {
+		return "", fmt.Errorf("couldn't create docker client\n%+v", err)
+	}
+
+	imageName := fmt.Sprintf("%s:%s", image, time.Now().UTC().Format("2006-01-02T15-04-05"))
+
+	if strings.Count(imageName, "/") == 1 {
+		imageName = fmt.Sprintf("docker.io/%s", imageName)
+	}
+
+	_, err = docker.ContainerCommit(ctx, name, types.ContainerCommitOptions{
+		Pause:     false,
+		Reference: imageName,
+	})
+
+	return imageName, err
+}
+
+// Push pushes a docker image and updates the latest ref
+// Uses docker cli to avoid dealing with auth
+func Push(image string) error {
+	com := exec.Command("/usr/bin/docker", []string{
+		"push",
+		image,
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	if err != nil {
+		return err
+	}
+
+	subs := strings.Split(image, ":'")
+	latest := fmt.Sprintf("%s:latest", subs[0])
+
+	com = exec.Command("/usr/bin/docker", []string{
+		"tag",
+		image,
+		latest,
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("updating latest tag")
+
+	com = exec.Command("/usr/bin/docker", []string{
+		"push",
+		latest,
+	}...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
 	return err
 }

@@ -17,10 +17,11 @@ rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
 rm -f /lib/systemd/system/basic.target.wants/*;\
 rm -f /lib/systemd/system/anaconda.target.wants/*;
 
-if ! cat /etc/passwd | grep 1000 >/dev/null 2>&1; then
+if ! grep 1000 < /etc/passwd >/dev/null 2>&1; then
   output "creating user / group"
   groupadd --gid 1000 "$USERNAME_CONFIG"
   useradd --gid 1000 --uid 1000 -G wheel -m "$USERNAME_CONFIG"
+  usermod -aG docker "$USERNAME_CONFIG"
 
 cat << EOF > "/home/$USERNAME_CONFIG/.bashrc"
   #!/usr/bin/env bash

@@ -11,8 +11,21 @@ type ConfigFileV1 struct {
 		// Base is the base image to use
 		Base string `yaml:"base"`
 
+		// Image defines a custom image to be used for this environment
+		Image string `yaml:"image"`
+
 		// Username is the username to use for this image
 		Username string `yaml:"username"`
+
+		// Binds are paths that should be mounted on the host into the container. The format is host:container
+		Binds []string `yaml:"binds"`
+
+		// CommitOptions modifies what commit should do when
+		// tracking changes
+		CommitOptions struct {
+			// Image name to modify. Must have push access to this.
+			Image string `yaml:"image"`
+		} `yaml:"commitOptions"`
 
 		// Options contains toggleable features
 		Options struct {
@@ -24,7 +37,7 @@ type ConfigFileV1 struct {
 
 			// SystemD enables systemd support
 			SystemD bool `yaml:"systemd"`
-		}
+		} `yaml:"options:`
 	}
 }
 
@@ -42,11 +55,17 @@ type Environment struct {
 	// Image is the Docker image used to run this environment.
 	Image string `json:"image"`
 
+	// Binds are paths that should be mounted on the host into the container. The format is host:container
+	Binds []string `yaml:"binds"`
+
 	// PulseAudio configures the pulseaudio integration
 	PulseAudio PulseAudioSettings `json:"pulseaudio"`
 
 	// X11 enables suppot for X11. This requires X11 to be running on the host
 	X11 X11Settings `json:"x11"`
+
+	// CommitImage is the image to push to
+	CommitImage string `json:"commitImage"`
 }
 
 // PulseAudioSettings configures pulseaudio
