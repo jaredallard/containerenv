@@ -57,7 +57,6 @@ func CreateContainer(e *Environment) (string, error) {
 		NetworkMode: "host",
 		Binds: []string{
 			"/var/run/docker.sock:/var/run/docker.sock",
-			"/var/run/dbus:/var/run/dbus",
 		},
 	}
 
