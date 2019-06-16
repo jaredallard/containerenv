@@ -4,46 +4,33 @@ import (
 	"fmt"
 	"log"
 
+	"strings"
+
 	"github.com/jaredallard/containerenv/pkg/containerenv"
 	"github.com/urfave/cli"
 )
 
-func commitCommand(c *cli.Context) error {
+func updateCommand(c *cli.Context) error {
 	if c.Args().First() == "" {
 		return fmt.Errorf("Missing environment name")
 	}
 
 	envName := c.Args().First()
 
-	var commitImage string
-
 	e, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
 
-	if c.String("image") != "" {
-		commitImage = c.String("image")
+	imageName := e.Image
+	if strings.Count(imageName, ":") == 0 {
+		imageName = imageName + ":latest"
 	} else {
-		if e.CommitImage == "" {
-			return fmt.Errorf("Environment did not specify a reference format. Please supply one with --image")
-		}
+		imageSplit := strings.Split(imageName, ":")
+		imageName = imageSplit[0] + ":latest"
 	}
 
-	log.Printf("creating a new version of environment '%s' and publishing to '%s'", envName, commitImage)
-
-	imageName, err := containerenv.Commit(envName, commitImage)
-	if err != nil {
-		return err
-	}
-
-	if !c.Bool("no-push") {
-		log.Printf("pushing image ...")
-		err = containerenv.Push(imageName)
-		if err != nil {
-			return err
-		}
-	}
+	containerenv.PullImage(e.Image)
 
 	log.Printf("recreating container")
 	err = containerenv.StopContainer(envName)
