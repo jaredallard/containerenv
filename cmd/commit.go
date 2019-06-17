@@ -29,6 +29,8 @@ func commitCommand(c *cli.Context) error {
 		if e.CommitImage == "" {
 			return fmt.Errorf("Environment did not specify a reference format. Please supply one with --image")
 		}
+
+		commitImage = e.Image
 	}
 
 	log.Infof("creating a new version of environment '%s' and publishing to '%s'", envName, commitImage)
