@@ -6,6 +6,8 @@ import (
 
 	"io/ioutil"
 
+	"os/exec"
+
 	"github.com/jaredallard/containerenv/pkg/containerenv"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -44,6 +46,17 @@ func createCommand(c *cli.Context) error {
 		if _, err := os.Stat("/tmp/.X11-unix"); os.IsNotExist(err) {
 			x11Conf.Containerized = true
 		} else {
+			log.Infof("running xhost ...")
+			com := exec.Command("xhost", "local:root")
+			com.Env = os.Environ()
+			com.Stderr = os.Stderr
+			com.Stdin = os.Stdin
+			com.Stdout = os.Stdout
+
+			if err := com.Run(); err != nil {
+				log.Warnf("Failed to run xhost, running X applications may fail")
+			}
+
 			x11Conf.Host = true
 		}
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-func startCommand(c *cli.Context) error {
+func stopCommand(c *cli.Context) error {
 	if c.Args().First() == "" {
 		return fmt.Errorf("Missing environment name")
 	}
@@ -32,11 +32,11 @@ func startCommand(c *cli.Context) error {
 		return fmt.Errorf("Failed to find a container")
 	}
 
-	if cont.State == "running" {
-		return fmt.Errorf("container is already running. Run 'containerenv exec %s' to exec into it", envName)
+	if cont.State != "running" {
+		return fmt.Errorf("container for environment '%s' is not running", envName)
 	}
 
-	log.Infof("starting environment '%s' ...", envName)
-	err = containerenv.StartContainer(cont.ID)
+	log.Infof("stopping environment '%s' ...", envName)
+	err = containerenv.StopContainer(cont.ID)
 	return err
 }

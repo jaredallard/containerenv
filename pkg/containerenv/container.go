@@ -372,3 +372,19 @@ func Push(image string) error {
 	err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
 	return err
 }
+
+// Logs retrieves container logs
+func Logs(id string, args []string) error {
+	// joins logs w/ args then id
+	dockerArgs := append(append([]string{"logs"}, args...), id)
+	log.Tracef("exec /usr/bin/docker %v", dockerArgs)
+
+	com := exec.Command("/usr/bin/docker", dockerArgs...)
+	com.Env = os.Environ()
+	com.Stderr = os.Stderr
+	com.Stdin = os.Stdin
+	com.Stdout = os.Stdout
+
+	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	return err
+}

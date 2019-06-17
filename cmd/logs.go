@@ -7,17 +7,21 @@ import (
 	"github.com/urfave/cli"
 )
 
-func execCommand(c *cli.Context) error {
-	envName := c.Args().First()
-	if envName == "" {
+func logsCommand(c *cli.Context) error {
+	if c.Args().First() == "" {
 		return fmt.Errorf("Missing environment name")
 	}
+
+	envName := c.Args().First()
 
 	_, id, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
 
-	err = containerenv.Exec(id)
+	// TODO: actually parse logs
+	err = containerenv.Logs(id, []string{
+		"-f",
+	})
 	return err
 }

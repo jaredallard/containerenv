@@ -78,6 +78,20 @@ func main() {
 			BashComplete: listEnvs,
 		},
 		cli.Command{
+			Name:         "stop",
+			Usage:        "Stop a running environment",
+			UsageText:    "stop <environment-name>",
+			Action:       stopCommand,
+			BashComplete: listEnvs,
+		},
+		cli.Command{
+			Name:         "logs",
+			Usage:        "Tail logs from a container (docker logs -f <id>)",
+			UsageText:    "logs <environment-name>",
+			Action:       logsCommand,
+			BashComplete: listEnvs,
+		},
+		cli.Command{
 			Name:        "completion",
 			Usage:       "Generate shell completion",
 			Description: "Add source <(containerenv completion YOUR_SHELL_HERE) to your shell rc (e.g ~/.bashrc)",
