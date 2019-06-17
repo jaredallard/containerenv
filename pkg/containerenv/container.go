@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/jaredallard/containerenv/pkg/version"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 )
@@ -49,7 +50,10 @@ func CreateContainer(e *Environment) (string, error) {
 			"jaredallard.containerenv/environment-name": e.Name,
 			"jaredallard.containerenv/config":           base64.StdEncoding.EncodeToString(b),
 		},
-		Env: []string{fmt.Sprintf("USERNAME_CONFIG=%s", e.Username)},
+		Env: []string{
+			fmt.Sprintf("USERNAME_CONFIG=%s", e.Username),
+			fmt.Sprintf("CONTAINERENV_VERSION=%s", version.GetVersion()),
+		},
 	}
 
 	hostconfig := &container.HostConfig{
