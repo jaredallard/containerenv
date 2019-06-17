@@ -357,7 +357,7 @@ func Push(image string) error {
 		return err
 	}
 
-	subs := strings.Split(image, ":'")
+	subs := strings.Split(image, ":")
 	latest := fmt.Sprintf("%s:latest", subs[0])
 
 	Tag(image, latest)
