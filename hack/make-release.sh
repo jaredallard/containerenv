@@ -13,7 +13,7 @@ rm -rf "Release"
 echo
 echo " ===> Creating binaries for all major platforms <=== "
 echo
-gox -parallel=2 -ldflags="$LDFLAGS" -tags "$TAGS" -output="Release/staging/containerenv-{{.OS}}-{{.Arch}}" -os "linux windows darwin" -arch "amd64 386" github.com/jaredallard/containerenv/cmd/...
+gox -parallel=2 -ldflags="$LDFLAGS" -tags "$TAGS" -output="Release/staging/containerenv-{{.OS}}-{{.Arch}}" -os "linux darwin" -arch "amd64 386" github.com/jaredallard/containerenv/cmd/...
 
 echo 
 echo " ===> Setting up staging for release generation <=== "
