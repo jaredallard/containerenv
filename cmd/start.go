@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/api/types"
 	"github.com/jaredallard/containerenv/pkg/containerenv"
@@ -31,10 +32,10 @@ func startCommand(c *cli.Context) error {
 		return fmt.Errorf("Failed to find a container")
 	}
 
-	log.Printf("Running status: %s", cont.State)
+	log.Infof("Running status: %s", cont.State)
 
 	if cont.State == "running" {
-		fmt.Printf("container is already running. Run 'containerenv exec %s' to exec into it.\n", envName)
+		return fmt.Errorf("container is already running. Run 'containerenv exec %s' to exec into it", envName)
 	}
 
 	err = containerenv.StartContainer(cont.ID)

@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jaredallard/containerenv/pkg/containerenv"
 	"github.com/urfave/cli"
@@ -17,7 +18,7 @@ func commitCommand(c *cli.Context) error {
 
 	var commitImage string
 
-	e, err := containerenv.GetConfig(envName)
+	e, _, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
@@ -30,7 +31,7 @@ func commitCommand(c *cli.Context) error {
 		}
 	}
 
-	log.Printf("creating a new version of environment '%s' and publishing to '%s'", envName, commitImage)
+	log.Infof("creating a new version of environment '%s' and publishing to '%s'", envName, commitImage)
 
 	imageName, err := containerenv.Commit(envName, commitImage)
 	if err != nil {
@@ -38,17 +39,17 @@ func commitCommand(c *cli.Context) error {
 	}
 
 	if !c.Bool("no-push") {
-		log.Printf("pushing image ...")
+		log.Infof("pushing image ...")
 		err = containerenv.Push(imageName)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Printf("recreating container")
+	log.Infof("recreating container")
 	err = containerenv.StopContainer(envName)
 	if err != nil {
-		log.Printf("WARNING: failed to stop container: %v", err)
+		log.Warnf("failed to stop container: %v", err)
 	}
 
 	err = containerenv.RemoveContainer(envName)

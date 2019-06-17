@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+
+	"strings"
+
 	"github.com/jaredallard/containerenv/pkg/containerenv"
 	"github.com/jaredallard/containerenv/pkg/version"
 	"github.com/urfave/cli"
@@ -30,6 +34,14 @@ func listEnvs(cli *cli.Context) {
 }
 
 func main() {
+	if strings.ToUpper(os.Getenv("LOG_LEVEL")) == "TRACE" {
+		log.SetLevel(log.TraceLevel)
+	}
+
+	if strings.ToUpper(os.Getenv("LOG_OUTPUT")) == "JSON" {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
+
 	App := cli.NewApp()
 	App.Name = "containerenv"
 	App.Usage = "reproducible and shareable operating system environments"
@@ -64,6 +76,12 @@ func main() {
 			UsageText:    "start <environment-name>",
 			Action:       startCommand,
 			BashComplete: listEnvs,
+		},
+		cli.Command{
+			Name:        "completion",
+			Usage:       "Generate shell completion",
+			Description: "Add source <(containerenv completion YOUR_SHELL_HERE) to your shell rc (e.g ~/.bashrc)",
+			Action:      generateCompletion,
 		},
 		cli.Command{
 			Name:         "commit",
@@ -114,7 +132,7 @@ func main() {
 
 	err := App.Run(os.Args)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err.Error())
 		os.Exit(1)
 	}
 }

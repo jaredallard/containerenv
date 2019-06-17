@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"io/ioutil"
 
 	"github.com/jaredallard/containerenv/pkg/containerenv"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
@@ -29,7 +29,7 @@ func createCommand(c *cli.Context) error {
 	}
 
 	if !conf.Environment.Options.SystemD {
-		log.Fatalf("Disabling systemd is not supported at this time.")
+		log.Fatalln("Disabling systemd is not supported at this time.")
 		os.Exit(1)
 	}
 
@@ -72,12 +72,18 @@ func createCommand(c *cli.Context) error {
 		env.Binds = conf.Environment.Binds
 	}
 
+	log.Infoln("Pulling docker image ...")
+	err = containerenv.PullImage(image)
+	if err != nil {
+		log.Warnf("Failed to pull docker image.")
+	}
+
 	id, err := containerenv.CreateContainer(env)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("starting container: %s\n", id)
+	log.Infof("Starting container: %s\n", id)
 
 	err = containerenv.StartContainer(id)
 	return err

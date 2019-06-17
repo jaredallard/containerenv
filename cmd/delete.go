@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/jaredallard/containerenv/pkg/containerenv"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -14,17 +14,17 @@ func deleteCommand(c *cli.Context) error {
 	}
 
 	envName := c.Args().First()
-	_, err := containerenv.GetConfig(envName)
+	_, id, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("destroying environment")
-	err = containerenv.StopContainer(envName)
+	log.Infof("destroying environment")
+	err = containerenv.StopContainer(id)
 	if err != nil {
-		log.Printf("WARNING: failed to stop container: %v", err)
+		log.Warnf("failed to stop container: %v", err)
 	}
 
-	err = containerenv.RemoveContainer(envName)
+	err = containerenv.RemoveContainer(id)
 	return err
 }

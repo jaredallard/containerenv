@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"strings"
 
@@ -17,7 +18,7 @@ func updateCommand(c *cli.Context) error {
 
 	envName := c.Args().First()
 
-	e, err := containerenv.GetConfig(envName)
+	e, id, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
@@ -30,21 +31,21 @@ func updateCommand(c *cli.Context) error {
 		imageName = imageSplit[0] + ":latest"
 	}
 
-	containerenv.PullImage(e.Image)
+	containerenv.PullImage(imageName)
 
-	log.Printf("recreating container")
-	err = containerenv.StopContainer(envName)
+	log.Infoln("recreating container")
+	err = containerenv.StopContainer(id)
 	if err != nil {
-		log.Printf("WARNING: failed to stop container: %v", err)
+		log.Warnf("failed to stop container: %v", err)
 	}
 
-	err = containerenv.RemoveContainer(envName)
+	err = containerenv.RemoveContainer(id)
 	if err != nil {
 		return err
 	}
 
 	e.Image = imageName
-	id, err := containerenv.CreateContainer(e)
+	id, err = containerenv.CreateContainer(e)
 	if err != nil {
 		return err
 	}

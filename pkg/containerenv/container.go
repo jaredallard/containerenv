@@ -2,8 +2,9 @@ package containerenv
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
+
+	log "github.com/sirupsen/logrus"
 
 	"os"
 
@@ -70,7 +71,7 @@ func CreateContainer(e *Environment) (string, error) {
 	}
 
 	if e.SystemD {
-		log.Println("enabling systemd")
+		log.Tracef("SYSTEMD_CONFIG=enabled")
 		systemdTmpfsMounts := []string{
 			"/run",
 			"/run/lock",
@@ -92,14 +93,14 @@ func CreateContainer(e *Environment) (string, error) {
 	}
 
 	if e.PulseAudio.Host {
-		log.Println("using pulseaudio from host")
+		log.Tracef("PULSEAUDIO_CONFIG=HOST")
 		uid := os.Getuid()
 
 		hostconfig.Binds = append(hostconfig.Binds, fmt.Sprintf("/run/user/%d/pulse:/run/user/1000/pulse", uid))
 
 		config.Env = append(config.Env, "PULSEAUDIO_CONFIG=HOST")
 	} else if e.PulseAudio.Containerized {
-		log.Println("setting up pulseaudio in the container")
+		log.Tracef("PULSEAUDIO_CONFIG=CONTAINER")
 
 		hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
 			PathOnHost:        "/dev/snd",
@@ -111,7 +112,7 @@ func CreateContainer(e *Environment) (string, error) {
 	}
 
 	if e.X11.Host {
-		log.Println("using X11 from the host")
+		log.Tracef("X11_CONFIG=HOST")
 		hostconfig.Binds = append(hostconfig.Binds, "/tmp/.X11-unix:/tmp/.X11-unix:ro")
 		hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
 			PathOnHost:        "/dev/dri",
@@ -121,7 +122,7 @@ func CreateContainer(e *Environment) (string, error) {
 
 		config.Env = append(config.Env, []string{"X11_CONFIG=HOST", "DISPLAY=:0", "PULSE_SERVER"}...)
 	} else if e.X11.Containerized {
-		log.Println("running xorg in the container")
+		log.Tracef("X11_CONFIG=CONTAINER")
 		hostconfig.Privileged = true
 
 		// TODO: collapse w/ the above definition
@@ -133,6 +134,12 @@ func CreateContainer(e *Environment) (string, error) {
 
 		config.Env = append(config.Env, "X11_CONFIG=CONTAINER")
 	}
+
+	bytesConfig, err := json.MarshalIndent(config, "", "  ")
+	bytesHostConf, err := json.MarshalIndent(hostconfig, "", "  ")
+
+	log.Tracef("config = '%s'", bytesConfig)
+	log.Tracef("hostconfig = '%s'", bytesHostConf)
 
 	resp, err := docker.ContainerCreate(ctx, config, hostconfig, &network.NetworkingConfig{}, e.Name)
 	if client.IsErrImageNotFound(err) {
@@ -210,12 +217,16 @@ func ListContainers() (*[]types.Container, error) {
 
 	f := filters.NewArgs()
 	f.Add("label", "jaredallard.containerenv/environment=true")
+	f.Add("status", "running")
+	f.Add("status", "exited")
 	cnts, err := docker.ContainerList(ctx, types.ContainerListOptions{
 		Filters: f,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search for environments: %s", err)
 	}
+
+	log.Tracef("ListContainers(): got len(%d) container(s)", len(cnts))
 
 	names := make([]types.Container, len(cnts))
 	for i, cnt := range cnts {
@@ -226,24 +237,26 @@ func ListContainers() (*[]types.Container, error) {
 }
 
 // GetConfig returns the config of an environment
-func GetConfig(name string) (*Environment, error) {
+func GetConfig(name string) (*Environment, string, error) {
 	ctx := context.Background()
 
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create docker client\n%+v", err)
+		return nil, "", fmt.Errorf("couldn't create docker client\n%+v", err)
 	}
 
 	f := filters.NewArgs()
 	f.Add("label", fmt.Sprintf("jaredallard.containerenv/environment-name=%s", name))
+	f.Add("status", "running")
+	f.Add("status", "exited")
 	cnts, err := docker.ContainerList(ctx, types.ContainerListOptions{
 		Filters: f,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if len(cnts) != 1 {
-		return nil, fmt.Errorf("failed to find container for environment (len %d)", len(cnts))
+		return nil, "", fmt.Errorf("failed to find container for environment (len %d)", len(cnts))
 	}
 
 	config := cnts[0].Labels["jaredallard.containerenv/config"]
@@ -251,15 +264,15 @@ func GetConfig(name string) (*Environment, error) {
 
 	decodedConfig, err := base64.StdEncoding.DecodeString(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 config: %v", err)
+		return nil, "", fmt.Errorf("failed to decode base64 config: %v", err)
 	}
 
 	err = json.Unmarshal(decodedConfig, &env)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshall to json: %v", err)
+		return nil, "", fmt.Errorf("failed to marshall to json: %v", err)
 	}
 
-	return &env, nil
+	return &env, cnts[0].ID, nil
 }
 
 // Exec opens a shell into an environment
