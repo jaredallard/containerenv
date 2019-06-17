@@ -33,6 +33,10 @@ func createCommand(c *cli.Context) error {
 		os.Exit(1)
 	}
 
+	if _, _, err := containerenv.GetConfig(conf.Environment.Name); err == nil {
+		return fmt.Errorf("environment '%s' already exists. use 'containerenv start %s' instead", conf.Environment.Name, conf.Environment.Name)
+	}
+
 	x11Conf := containerenv.X11Settings{}
 	if conf.Environment.Options.X11 {
 

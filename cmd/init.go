@@ -15,6 +15,7 @@ import (
 func initCommand(c *cli.Context) error {
 	images := []string{
 		"archlinux",
+		"ubuntu:19.04",
 	}
 
 	e := containerenv.ConfigFileV1{
