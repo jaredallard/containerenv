@@ -5,6 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"strings"
+
 	"github.com/jaredallard/containerenv/pkg/containerenv"
 	"github.com/urfave/cli"
 )
@@ -30,7 +32,7 @@ func commitCommand(c *cli.Context) error {
 			return fmt.Errorf("Environment did not specify a reference format. Please supply one with --image")
 		}
 
-		commitImage = e.Image
+		commitImage = strings.Split(e.Image, ":")[0]
 	}
 
 	log.Infof("creating a new version of environment '%s' and publishing to '%s'", envName, commitImage)
