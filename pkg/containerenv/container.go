@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	log "github.com/sirupsen/logrus"
+	memory "github.com/pbnjay/memory"
 
 	"os"
 
@@ -63,6 +64,7 @@ func CreateContainer(e *Environment) (string, error) {
 		Binds: []string{
 			"/var/run/docker.sock:/var/run/docker.sock",
 		},
+		ShmSize: int64(memory.TotalMemory() / 2),
 	}
 
 	g, err := user.LookupGroup("docker")
