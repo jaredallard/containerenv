@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
+	"bytes"
 	"strings"
 
 	"os/user"
@@ -283,14 +284,34 @@ func GetConfig(name string) (*Environment, string, error) {
 
 // Exec opens a shell into an environment
 // This just wraps docker exec due to not wanting to reimplement that.
-func Exec(name string) error {
+func Exec(name string, e *Environment) error {
+	// Grab the default shell for user
+	awkCom := exec.Command("/usr/bin/docker", []string{
+		"exec",
+		name,
+		"awk",
+		"-F:",
+		"/" + e.Username + "/ { print $7 }",
+		"/etc/passwd",
+	}...)
+	var out bytes.Buffer
+	awkCom.Stdout = &out
+	err := awkCom.Run()
+	shell := ""
+	if err != nil {
+		log.Warnf("failed to lookup shell for user'%s', falling back to bash", e.Username)
+		shell = "bash"
+	} else {
+		shell = strings.ReplaceAll(out.String(), "\n", "")
+	}
+
 	com := exec.Command("/usr/bin/docker", []string{
 		"exec",
 		"-it",
 		"--user",
 		"1000",
 		name,
-		"bash",
+		shell,
 		"--login",
 	}...)
 	com.Env = os.Environ()
@@ -298,7 +319,7 @@ func Exec(name string) error {
 	com.Stdin = os.Stdin
 	com.Stdout = os.Stdout
 
-	err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
+	err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(com.Run)
 	return err
 }
 
