@@ -13,11 +13,11 @@ func execCommand(c *cli.Context) error {
 		return fmt.Errorf("Missing environment name")
 	}
 
-	_, id, err := containerenv.GetConfig(envName)
+	conf, id, err := containerenv.GetConfig(envName)
 	if err != nil {
 		return err
 	}
 
-	err = containerenv.Exec(id)
+	err = containerenv.Exec(id, conf)
 	return err
 }
